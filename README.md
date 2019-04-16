@@ -1,3 +1,4 @@
+# HTB FriendZone (10.10.10.123) Write-up
 ## PART 1 : Initial Recon
 
 ```console
